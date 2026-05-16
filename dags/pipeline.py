@@ -23,11 +23,6 @@ with DAG(
     description='Orders API -> Spark -> ClickHouse Analytics Pipeline'
 
 ) as dag:
-
-    # =========================================
-    # FETCH DATA FROM API
-    # =========================================
-
     fetch_orders = BashOperator(
         task_id='fetch_orders_data',
 
@@ -36,11 +31,6 @@ with DAG(
             '/opt/airflow/dags/scripts/fetch.py'
         )
     )
-
-    # =========================================
-    # PROCESS ANALYTICS USING SPARK
-    # =========================================
-
     process_orders = BashOperator(
         task_id='process_orders_analytics',
 
@@ -49,9 +39,4 @@ with DAG(
             '/opt/airflow/dags/scripts/process.py'
         )
     )
-
-    # =========================================
-    # TASK ORCHESTRATION
-    # =========================================
-
     fetch_orders >> process_orders
