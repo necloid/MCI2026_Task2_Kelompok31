@@ -1,7 +1,4 @@
 # MCI2026_Task2_Kelompok31
-# MCI2026_Task2_Kelompok31
-
-# MCI2026_Task2_Kelompok31
 
 A. HOW TO RUN:
 
