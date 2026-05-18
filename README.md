@@ -1,6 +1,14 @@
 # MCI2026_Task2_Kelompok31
 
-### A. HOW TO RUN:
+## A. EXPLANATION OF DATABASE, TABLE SCHEMA, AND PIPELINE:
+Fetch.py code (Fey):
+
+Process.py code (Fey & Isabel):
+
+## B. EXPLANATION OF INSIGHTS, VISUALIZATION, AND DASHBOARD:
+Metabase visualization (Isabel):
+
+## C. GUIDE TO RUN PIPELINE:
 
 1. `docker-compose build`
 
@@ -29,7 +37,7 @@ SHOW TABLES;
 9. to run the script directly inside the container (for debugging purposes and seeing errors):
 `docker exec -it mci2026_task2_kelompok31-airflow-scheduler-1 bash -c "python //opt/airflow/dags/scripts/process.py"`
 
-10. open `http://localhost:3000`, and sign in with the following information:
+10. open `http://localhost:3000` (currently figuring out how to share access between different devices), and sign in with the following information:
 
 Field	Value
 Database type	ClickHouse
@@ -42,18 +50,6 @@ Password	rahasia
 
 11. go to New --> Question --> Data Warehouse --> choose any field you wish to visualize --> start visualizing
 
-### B. EXPLANATION OF DATABASE, TABLE SCHEMA, AND PIPELINE:
-
-Before we explain the code, previously we didn't know that source codes for the assignment were provided by the admins in the material folder so we had to figure out and create the script ourselves 🥀🙏 Also, we assumed that the assignment asked for us to convert the data from the given API endpoint into an analytics-specific schema, so that's exactly what we did. 
-
-Fetch.py code (Fey):
-
-Process.py code (Fey & Isabel):
-
-
-### C. EXPLANATION OF INSIGHTS, VISUALIZATION, AND DASHBOARD:
-
-Metabase visualization (Isabel):
-
-### D. CONCLUSION AND AFTERTHOUGHTS
+## D. CONCLUSION AND AFTERTHOUGHTS
+Previously we didn't know that source codes for the assignment were provided by the admins in the material folder, so we had to figure out and create the script ourselves 🥀🙏 Also, we assumed that the assignment asked for us to convert the data from the given API endpoint into an analytics-specific schema, so that's exactly what we did. 
 
