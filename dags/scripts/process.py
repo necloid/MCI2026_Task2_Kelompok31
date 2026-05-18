@@ -161,7 +161,8 @@ def run_orders_analytics():
         )
     ).withColumn(
         "churn_risk",
-        F.when(F.col("churn_risk_score") >= 0.7, "High")
+        F.when(F.col("order_count") == 1, "New Customer")
+        .when(F.col("churn_risk_score") >= 0.7, "High")
         .when(F.col("churn_risk_score") >= 0.4, "Medium")
         .otherwise("Low")
     ).select("user_id", "avg_days_between_orders", "churn_risk_score", "churn_risk")
