@@ -29,7 +29,11 @@ SELECT * FROM top_products
 <img width="1993" height="1375" alt="Screenshot 2026-05-17 201740" src="https://github.com/user-attachments/assets/92dfe106-4313-40f2-a5c2-5b535a3982f2" />
 
 
-9. open http://localhost:3000, and sign in with the following information:
+9. to run the script directly inside the container (for debugging purposes and seeing errors):
+docker exec -it mci2026_task2_kelompok31-airflow-scheduler-1 bash -c "python //opt/airflow/dags/scripts/process.py"
+
+
+10. open http://localhost:3000, and sign in with the following information:
 
 Field	Value
 Database type	ClickHouse
@@ -40,7 +44,9 @@ Database name	analytics
 Username	admin
 Password	rahasia
 
-10. go to New --> Question --> Data Warehouse Wikipedia --> choose any field you wish to visualize --> start visualizing
+
+11. go to New --> Question --> Data Warehouse Wikipedia --> choose any field you wish to visualize --> start visualizing
+
 
 
 
