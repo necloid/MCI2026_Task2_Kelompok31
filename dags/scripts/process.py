@@ -46,6 +46,7 @@ def run_orders_analytics():
     print("\n🔥 Top Products:")
     top_products_df.show(10)
 
+
     # HOURLY ORDER ANALYTICS
     hourly_orders_df = df_raw.groupBy(
         "order_hour_of_day"
@@ -57,6 +58,34 @@ def run_orders_analytics():
 
     print("\n🕒 Orders by Hour:")
     hourly_orders_df.show()
+
+     # DAILY ORDERS ANALYTICS
+    daily_orders_df = df_raw.groupBy(
+        "order_dow"
+    ).agg(
+        F.countDistinct("order_id").alias("total_orders")
+    )
+
+    daily_orders_df = daily_orders_df.withColumn(
+        "day_name",
+        F.when(F.col("order_dow") == 0, "Sunday")
+        .when(F.col("order_dow") == 1, "Monday")
+        .when(F.col("order_dow") == 2, "Tuesday")
+        .when(F.col("order_dow") == 3, "Wednesday")
+        .when(F.col("order_dow") == 4, "Thursday")
+        .when(F.col("order_dow") == 5, "Friday")
+        .when(F.col("order_dow") == 6, "Saturday")
+    ).orderBy("order_dow")
+
+    daily_orders_df = daily_orders_df.select(
+        "order_dow",
+        "day_name",
+        "total_orders"
+    )
+
+    print("\nDaily Orders Analytics:")
+    daily_orders_df.show()
+
 
     # DEPARTMENT ANALYTICS
     department_df = df_raw.groupBy(
@@ -73,11 +102,60 @@ def run_orders_analytics():
     print("\n🏬 Department Analytics:")
     department_df.show()
 
+
+    # USER ANALYTICS
+
+    # calculate amount of products inside each order
+    products_per_order_df = df_raw.groupBy(
+        "user_id",
+        "order_id"
+    ).agg(
+        F.count("*").alias("products_in_order")
+    )
+
+    # aggregate per user
+    user_analytics_df = products_per_order_df.groupBy(
+        "user_id"
+    ).agg(
+        F.countDistinct("order_id").alias("total_orders"),
+
+        F.avg("products_in_order")
+            .alias("avg_products_per_order"),
+
+        F.max("products_in_order")
+            .alias("largest_order_size"),
+
+        F.min("products_in_order")
+            .alias("smallest_order_size")
+
+    ).orderBy(
+        F.desc("total_orders")
+    )
+
+    print("\nUser Analytics:")
+    user_analytics_df.show()
+
+
+
+    # CONVERSION FROM DF TO PD
+
     print("\n🔄 Convert Spark DataFrame → Pandas...")
 
     top_products_pd = top_products_df.toPandas()
     hourly_orders_pd = hourly_orders_df.toPandas()
+    daily_orders_pd = daily_orders_df.toPandas()
     department_pd = department_df.toPandas()
+
+    user_analytics_pd = user_analytics_df.toPandas()
+    # user_analytics_pd['avg_products_per_order'] = user_analytics_pd['avg_products_per_order'].astype('float64')
+    # user_analytics_pd['user_id'] = user_analytics_pd['user_id'].astype('uint32')
+    # user_analytics_pd['total_orders'] = user_analytics_pd['total_orders'].astype('uint32')
+    # user_analytics_pd['largest_order_size'] = user_analytics_pd['largest_order_size'].astype('uint32')
+    # user_analytics_pd['smallest_order_size'] = user_analytics_pd['smallest_order_size'].astype('uint32')
+
+    # debug
+    print(user_analytics_pd.dtypes)
+    print(user_analytics_pd.head())
 
     spark.stop()
 
@@ -118,6 +196,18 @@ def run_orders_analytics():
         ORDER BY order_hour_of_day
     ''')
 
+    
+    # DAILY ORDERS TABLES
+    client.execute('''
+        CREATE TABLE IF NOT EXISTS analytics.daily_orders (
+            order_dow UInt8,
+            day_name String,
+            total_orders UInt32
+        )
+        ENGINE = MergeTree()
+        ORDER BY order_dow
+    ''')
+
     # DEPARTMENT ANALYTICS TABLE
     client.execute('''
         CREATE TABLE IF NOT EXISTS analytics.department_analytics (
@@ -129,6 +219,22 @@ def run_orders_analytics():
         ORDER BY total_products_sold
     ''')
 
+    # USER ANALYTICS TABLE
+    client.execute('''
+        CREATE TABLE IF NOT EXISTS analytics.user_analytics (
+            user_id UInt32,
+            total_orders UInt32,
+            avg_products_per_order Float64,
+            largest_order_size UInt32,
+            smallest_order_size UInt32
+        )
+        ENGINE = MergeTree()
+        ORDER BY total_orders
+    ''')
+
+    # lets js try changing the datatype of avg_products_per_order from float32 to float64
+    # let's change user_id from UInt32 to int64
+
     print("✅ Table ClickHouse siap")
 
     # TRUNCATE OLD DATA
@@ -138,12 +244,16 @@ def run_orders_analytics():
 
     client.execute('TRUNCATE TABLE analytics.hourly_orders')
 
+    client.execute('TRUNCATE TABLE analytics.daily_orders')
+
     client.execute('TRUNCATE TABLE analytics.department_analytics')
+
+    client.execute('TRUNCATE TABLE analytics.user_analytics')
 
     # INSERT DATA
     print("\n⬆️ Insert data ke ClickHouse...")
 
-    # TOP PRODUCTS
+    # TOP PRODUCTS INSERT
     top_products_tuples = [
         tuple(x)
         for x in top_products_pd.to_numpy()
@@ -156,7 +266,7 @@ def run_orders_analytics():
             top_products_tuples
         )
 
-    # HOURLY ORDERS
+    # HOURLY ORDERS INSERT
     hourly_orders_tuples = [
         tuple(x)
         for x in hourly_orders_pd.to_numpy()
@@ -169,7 +279,20 @@ def run_orders_analytics():
             hourly_orders_tuples
         )
 
-    # DEPARTMENT ANALYTICS
+    # DAILY ORDERS INSERT
+    daily_orders_tuples = [
+        tuple(x)
+        for x in daily_orders_pd.to_numpy()
+    ]
+
+    if daily_orders_tuples:
+
+        client.execute(
+            'INSERT INTO analytics.daily_orders VALUES',
+            daily_orders_tuples
+        )
+
+    # DEPARTMENT ANALYTICS INSERT
     department_tuples = [
         tuple(x)
         for x in department_pd.to_numpy()
@@ -180,6 +303,24 @@ def run_orders_analytics():
         client.execute(
             'INSERT INTO analytics.department_analytics VALUES',
             department_tuples
+        )
+
+    # USER ANALYTICS INSERT
+    # user_analytics_tuples = [
+    #     tuple(x)
+    #     for x in user_analytics_pd.to_numpy()
+    # ]
+
+    user_analytics_tuples = [
+        (int(row.user_id), int(row.total_orders), round(float(row.avg_products_per_order), 2), int(row.largest_order_size), int(row.smallest_order_size))
+        for row in user_analytics_pd.itertuples(index=False)
+    ]
+
+    if user_analytics_tuples:
+
+        client.execute(
+            'INSERT INTO analytics.user_analytics VALUES',
+            user_analytics_tuples
         )
 
     print("✅ Semua analytics berhasil dimuat ke ClickHouse")
