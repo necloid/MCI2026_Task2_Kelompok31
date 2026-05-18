@@ -40,7 +40,7 @@ SHOW TABLES;
 10. Open `http://localhost:3000` (currently figuring out how to share access between different devices), and sign in with the following information:
 
 |Field|Value|
--------------
+|-----|-----|
 |Database type|ClickHouse|
 |Display name	Orders|Data Warehouse|
 |Host|clickhouse-server|
