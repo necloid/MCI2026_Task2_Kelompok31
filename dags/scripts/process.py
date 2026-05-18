@@ -146,12 +146,16 @@ def run_orders_analytics():
     )
 
     user_loyalty_df = user_order_days_df.withColumn(
-        "churn_risk_score",
+        "avg_days_between_orders",
         F.when(
-            F.col("order_count") == 1, 1.0
-        ).otherwise(
+            F.col("avg_days_between_orders").isNull(), 0.0
+        ).otherwise(F.col("avg_days_between_orders"))
+    ).withColumn(
+        "churn_risk_score",
+        F.least(
+            F.lit(1.0),
             F.round(
-                F.col("avg_days_between_orders") / (F.col("avg_days_between_orders") + F.col("order_count") * 10),
+                (F.lit(1.0) / F.col("order_count")) * (F.lit(1.0) + F.col("avg_days_between_orders") / F.lit(30.0)),
                 2
             )
         )
@@ -162,11 +166,8 @@ def run_orders_analytics():
         .otherwise("Low")
     ).select("user_id", "avg_days_between_orders", "churn_risk_score", "churn_risk")
 
-    print("\nUser Loyalty:")
-    user_loyalty_df.show()
-
-    # churn_risk_score = avg_days_between_orders / (avg_days_between_orders + total_orders * 10)
-
+    # churn_risk_score = 1 / total_orders * (1 + avg_days_between_orders / 30)
+    # if the user only orders once, then avg_days_between_orders = 0
 
 
     # CONVERSION FROM DF TO PD
