@@ -1,25 +1,89 @@
 # 🛍️ Orders Analytics Data Pipeline
-
+```
+External Orders API
+        ↓
+fetch.py
+        ↓
+Parquet Files (Data Lake)
+        ↓
+process.py
+        ↓
+ClickHouse
+        ↓
+Metabase Dashboard
+```
 ### A. Explanation of Database, Table Schema, and Pipeline:
-Fetch.py code (Fey):
+#### `fetch.py` code (Fey):
+The `fetch.py` script functions as the ingestion stage of the pipeline where it retrieves raw order data from the provided external API endpoint, then transform the nested JSON structure into a flattened tabular format, and store the results inside the data lake as `.parquet` files for processing by Apache Spark. The script first sends an HTTP GET request using the Python `requests` library:
+```python
+response = requests.get(
+    url=url,
+    headers=headers,
+    timeout=20
+)
+```
+After successfully retrieving the JSON response, the script flattens the nested products array so that each product becomes its own row while still preserving the parent order information.
+```python
+for product in order.get("products", []):
+  row = {
+      **order_info,
+      "product_id": product.get("product_id"),
+      ...
+  }
+```
+The parsed rows are then converted into a Pandas DataFrame and stored into the data lake directory `/opt/airflow/data_lake/orders/` as timestamped `.parquet` files.
+```python
+df.to_parquet(temp_path, index=False)
+```
+The script also uses a temporary .tmp file before renaming it into the final parquet file to ensure atomic writes and prevent corrupted partial files from appearing in the data lake.
 
-Process.py code (Fey & Isabel):
+#### `Process.py` code (Fey & Isabel):
 
-This code does these main things:
+The process step of the pipeline executes these main objectives:
+1. Spark Context Initialization (initializing the SparkSession)
+2. Data Ingestion (reading the data stored in a .parquet file directly from the data lake pathway `/opt/airflow/data_lake/orders/`)
+3. Analytical Processing (processing the df_raw into specialized tables for calculating the analytics)
 
-#### 1. Spark Context Initialization (initializing the SparkSession)
-  
-#### 2. Data Ingestion (reading the data stored in a .parquet file directly from the data lake pathway /opt/airflow/data_lake/orders/)
-   
-#### 3. Analytical Processing (processing the df_raw into specialized tables for calculating the analytics)
 
 **a. Top Products:**
 
 
+This field analyzes the most purchased and most reordered products from the transactional dataset. The analytics groups the data based on product_id, product_name, and department, then calculates the amount of purchases and reorder frequency.
+```python
+top_products_df = df_raw.groupBy(
+        "product_id",
+        "product_name",
+        "department"
+    ).agg(
+        F.count("*").alias("total_purchases"),
+
+        F.sum(
+            F.when(F.col("reordered") == 1, 1)
+            .otherwise(0)
+        ).alias("total_reorders")
+
+    ).orderBy(
+        F.desc("total_purchases")
+    ).limit(30)
+```
+
 **b. Hourly Order Analytics:**
 
 
+This field analyzes customer purchasing activity based on the hour of the day. The analytics uses order_hour_of_day to determine peak shopping hours and customer traffic patterns.
+```python
+hourly_orders_df = df_raw.groupBy(
+    "order_hour_of_day"
+).agg(
+    F.countDistinct("order_id").alias("total_orders")
+).orderBy(
+    "order_hour_of_day"
+)
+```
+
+
 **c. Daily Orders Analytics:**
+
 
 Similar to the previous field, this field is used to analyze purchasing behavior based on the days of the week. When we looked at the structure of the order_dow data format, we assume that it follows the format of 0=Sunday, 1=Monday, and so on.
 ```python
@@ -58,6 +122,19 @@ daily_orders_df = daily_orders_df.select(
 
 **d. Department Analytics:**
 
+This field analyzes product purchasing activity at the department/category level. The aggregation calculates how many products were sold per department and how many unique orders contributed to that department.
+```python
+department_df = df_raw.groupBy(
+    "department"
+).agg(
+    F.count("*").alias("total_products_sold"),
+
+    F.countDistinct("order_id").alias("unique_orders")
+
+).orderBy(
+    F.desc("total_products_sold")
+)
+```
 
 **e. User Analytics:**
 Tracks information in relation to the user, data, and orders. I suppose you can consider it like a customer profile.
@@ -128,10 +205,29 @@ user_loyalty_df = user_order_days_df.withColumn(
 
 #### 4. Data destructuring and Type Casting (converting PySpark's dataframes into Pandas and mapping the structure to Python tuples)
 
+After all Spark transformations and aggregations are completed, each PySpark DataFrame is converted into a Pandas DataFrame using the `toPandas()` function before insertion into ClickHouse. The Pandas DataFrames are then mapped into Python tuple structures because the ClickHouse Python driver performs bulk insertion using tuple-based row formatting. 
+```python
+top_products_tuples = [
+    tuple(x)
+    for x in top_products_pd.to_numpy()
+]
+```
+Some fields are also explicitly type-casted and rounded before insertion to avoid schema mismatches between Spark and ClickHouse data types.
+
 #### 5. OLAP Layer Storage (initiates an external database driver connection to a distributed container network (host='clickhouse-server')
 
-
-
+The final stage of the pipeline connects to the ClickHouse OLAP database container through Docker's distributed internal network. 
+```python
+client = Client(
+    host='clickhouse-server',
+    user='admin',
+    password='rahasia'
+)
+```
+The pipeline then creates the analytics database if it does not exist and creates all analytical tables using the `MergeTree()` engine. It also truncates old analytical snapshots then inserts the newest processed analytics into ClickHouse.
+```python
+client.execute('TRUNCATE TABLE analytics.top_products')
+```
 
 ### B. Explanation of Insights, Visualization, and Dashboard:
 Metabase visualization (Isabel):
@@ -202,5 +298,9 @@ SHOW TABLES;
 12. To synch your Metabase with the database schema, go to the Admin Settings --> Databases --> click on your specific ClickHouse database --> Sync database Schema
 
 ### D. Conclusion and Afterthoughts
-Previously we didn't know that source codes for the assignment were provided by the admins in the material folder, so we had to figure out and create the script ourselves 🥀🙏 Also, we assumed that the assignment asked for us to convert the data from the given API endpoint into an analytics-specific schema, so that's exactly what we did. 
+
+Previously we didn't know that source codes for the assignment were provided by the admins in the material folder, so we had to figure out and create the script ourselves 🥀🙏 Also, we assumed that the assignment asked for us to convert the data from the given API endpoint into an analytics-specific schema, so that's exactly what we did. Though it helped us learn these technologies that are very new to us because we then learned how Apache Airflow orchestrates automated data pipelines with Docker and how Apache Spark performs distributed analytics processing on large datasets.
+
+We also understood more about using ClickHouse for OLAP storage and Metabase for transforming analytical results from raw data into interactive dashboards. Overall, the project helped us better understand the modern data stack workflow from ingestion and processing to orchestration, storage, and visualization.
+
 
