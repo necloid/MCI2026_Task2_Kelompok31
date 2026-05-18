@@ -166,7 +166,7 @@ Full dashboard:
 
 4. After waiting 1-2 minutes, open `http://localhost:8080` and login as `admin/admin`
 
-5. run "Trigger DAG" (the play button)
+5. Press "Trigger DAG" (the play button) to force run the pipeline process or let it run as scheduled
 <img width="1846" height="325" alt="Screenshot 2026-05-17 202017" src="https://github.com/user-attachments/assets/4bb4a64e-d99d-4e6e-bb85-0265a3faabf0" />
 
 7. Enter the created ClickHouse database with the command `docker exec -it mci2026_task2_kelompok31-clickhouse-server-1 clickhouse-client`
