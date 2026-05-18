@@ -49,8 +49,18 @@ Password	rahasia
 
 
 
-
 B. EXPLANATION OF DATABASE, TABLE SCHEMA, AND PIPELINE:
+
+Before we explain the code, let us just say that WE DIDN'T KNOW Y'ALL ALREADY PROVIDED SOURCE CODES WE SWEAR ON OUR LIVES we had to figure it out ourselves🥀🥀🥀🙏🙏🙏
+
+Also, we assumed that the assignment asked for us to convert the data from the given API endpoint into an analytics-specific schema, so that's exactly what we did. 
+
+Fetch.py code (Fey):
+
+Process.py code (Fey & Isabel):
 
 
 C. EXPLANATION OF INSIGHTS, VISUALIZATION, AND DASHBOARD:
+
+Metabase visualization (Isabel):
+
