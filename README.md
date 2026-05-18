@@ -141,7 +141,7 @@ Metabase visualization (Isabel):
 <img width="1841" height="1249" alt="Screenshot 2026-05-18 220740" src="https://github.com/user-attachments/assets/75215c78-73dd-4bf2-9bd5-90e5553862d2" />
 
 
-Some of the visualizations were made using SQL Queries from Metabase, but others simply used the Metabase Visualization tool (since most of the SQL Queries for the analytics database is already incorporated in the process.py code).
+Some of the visualizations were made using SQL Queries from Metabase, but others simply used the Metabase Visualization tool (since most of the SQL Queries for the analytics database is already incorporated in the process.py code). By the way, make sure to sync Metabase with the current database schema if you've made some changes to the schema, since if you don't, there will be an error (trust me).
 
 Full dashboard:
 
