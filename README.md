@@ -12,8 +12,8 @@ ClickHouse
         ↓
 Metabase Dashboard
 ```
-### A. Explanation of Database, Table Schema, and Pipeline:
-#### `fetch.py` code (Fey):
+### 1. Explanation of Database, Table Schema, and Pipeline:
+#### 1.1 `fetch.py` code (Fey):
 The `fetch.py` script functions as the ingestion stage of the pipeline where it retrieves raw order data from the provided external API endpoint, then transform the nested JSON structure into a flattened tabular format, and store the results inside the data lake as `.parquet` files for processing by Apache Spark. The script first sends an HTTP GET request using the Python `requests` library:
 ```python
 response = requests.get(
@@ -37,7 +37,7 @@ df.to_parquet(temp_path, index=False)
 ```
 The script also uses a temporary .tmp file before renaming it into the final parquet file to ensure atomic writes and prevent corrupted partial files from appearing in the data lake.
 
-#### `Process.py` code (Fey & Isabel):
+#### 1.2 `Process.py` code (Fey & Isabel):
 
 The process step of the pipeline executes these main objectives:
 1. Spark Context Initialization (initializing the SparkSession)
@@ -228,7 +228,7 @@ The pipeline then creates the analytics database if it does not exist and create
 client.execute('TRUNCATE TABLE analytics.top_products')
 ```
 
-#### `pipeline.py` code (fey)
+#### 1.3 `pipeline.py` code (fey)
 This script defines the workflow orchestration logic using Apache Airflow. It creates a DAG (Directed Acyclic Graph) named `orders_realtime_pipeline` which automates the execution flow between the ingestion and analytics stages of the pipeline. The DAG is scheduled to run every 10 minutes using:
 ```python id="r8pjwq"
 schedule_interval='*/10 * * * *'
@@ -244,7 +244,7 @@ fetch_orders >> process_orders
 ensures that the processing stage only starts after the data ingestion stage completes successfully, allowing the pipeline to run sequentially and automatically every cycle.
 
 
-### B. Explanation of Insights, Visualization, and Dashboard:
+### 2. Explanation of Insights, Visualization, and Dashboard:
 Metabase visualization (Isabel):
 <img width="1817" height="1013" alt="Screenshot 2026-05-18 220238" src="https://github.com/user-attachments/assets/04128c95-06c5-43ce-a7ae-17954a5e2b9c" />
 
@@ -267,9 +267,9 @@ Full dashboard:
 
 
 
-### C. Guide to Run Pipeline:
+### 3. Guide to Run Pipeline:
 
-1. Build image using the command `docker-compose build` in our workspace location's terminal.
+1 Build image using the command `docker-compose build` in our workspace location's terminal.
 
 2. Install airflow database using `docker-compose up airflow-init`
 
@@ -312,7 +312,7 @@ SHOW TABLES;
 
 12. To synch your Metabase with the database schema, go to the Admin Settings --> Databases --> click on your specific ClickHouse database --> Sync database Schema
 
-### D. Conclusion and Afterthoughts
+### 4. Conclusion and Afterthoughts
 
 Previously we didn't know that source codes for the assignment were provided by the admins in the material folder, so we had to figure out and create the script ourselves 🥀🙏 Also, we assumed that the assignment asked for us to convert the data from the given API endpoint into an analytics-specific schema, so that's exactly what we did. Though it helped us learn these technologies that are very new to us because we then learned how Apache Airflow orchestrates automated data pipelines with Docker and how Apache Spark performs distributed analytics processing on large datasets.
 
