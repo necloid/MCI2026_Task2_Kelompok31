@@ -1,4 +1,4 @@
-# MCI2026_Task2_Kelompok31
+# 🛍️ Orders Analytics Data Pipeline
 
 ### A. Explanation of Database, Table Schema, and Pipeline:
 Fetch.py code (Fey):
