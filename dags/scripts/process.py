@@ -126,7 +126,10 @@ def run_orders_analytics():
             .alias("largest_order_size"),
 
         F.min("products_in_order")
-            .alias("smallest_order_size")
+            .alias("smallest_order_size"),
+
+        F.sum("products_in_order")
+            .alias("total_products_bought")
 
     ).orderBy(
         F.desc("total_orders")
@@ -134,6 +137,35 @@ def run_orders_analytics():
 
     print("\nUser Analytics:")
     user_analytics_df.show()
+
+
+    # USER LOYALTY
+    user_order_days_df = df_raw.groupBy("user_id").agg(
+        F.avg("days_since_prior_order").alias("avg_days_between_orders"),
+        F.countDistinct("order_id").alias("order_count")
+    )
+
+    user_loyalty_df = user_order_days_df.withColumn(
+        "churn_risk_score",
+        F.when(
+            F.col("order_count") == 1, 1.0
+        ).otherwise(
+            F.round(
+                F.col("avg_days_between_orders") / (F.col("avg_days_between_orders") + F.col("order_count") * 10),
+                2
+            )
+        )
+    ).withColumn(
+        "churn_risk",
+        F.when(F.col("churn_risk_score") >= 0.7, "High")
+        .when(F.col("churn_risk_score") >= 0.4, "Medium")
+        .otherwise("Low")
+    ).select("user_id", "avg_days_between_orders", "churn_risk_score", "churn_risk")
+
+    print("\nUser Loyalty:")
+    user_loyalty_df.show()
+
+    # churn_risk_score = avg_days_between_orders / (avg_days_between_orders + total_orders * 10)
 
 
 
@@ -145,17 +177,9 @@ def run_orders_analytics():
     hourly_orders_pd = hourly_orders_df.toPandas()
     daily_orders_pd = daily_orders_df.toPandas()
     department_pd = department_df.toPandas()
-
     user_analytics_pd = user_analytics_df.toPandas()
-    # user_analytics_pd['avg_products_per_order'] = user_analytics_pd['avg_products_per_order'].astype('float64')
-    # user_analytics_pd['user_id'] = user_analytics_pd['user_id'].astype('uint32')
-    # user_analytics_pd['total_orders'] = user_analytics_pd['total_orders'].astype('uint32')
-    # user_analytics_pd['largest_order_size'] = user_analytics_pd['largest_order_size'].astype('uint32')
-    # user_analytics_pd['smallest_order_size'] = user_analytics_pd['smallest_order_size'].astype('uint32')
-
-    # debug
-    print(user_analytics_pd.dtypes)
-    print(user_analytics_pd.head())
+    user_loyalty_pd = user_loyalty_df.toPandas()
+    
 
     spark.stop()
 
@@ -226,14 +250,24 @@ def run_orders_analytics():
             total_orders UInt32,
             avg_products_per_order Float64,
             largest_order_size UInt32,
-            smallest_order_size UInt32
+            smallest_order_size UInt32,
+            total_products_bought UInt32
         )
         ENGINE = MergeTree()
         ORDER BY total_orders
     ''')
 
-    # lets js try changing the datatype of avg_products_per_order from float32 to float64
-    # let's change user_id from UInt32 to int64
+    # USER LOYALTY TABLE
+    client.execute('''
+       CREATE TABLE IF NOT EXISTS analytics.user_loyalty (
+        user_id UInt32,
+        avg_days_between_orders Float64,
+        churn_risk_score Float64,
+        churn_risk String
+    )
+    ENGINE = MergeTree()
+    ORDER BY user_id
+    ''')
 
     print("✅ Table ClickHouse siap")
 
@@ -249,6 +283,8 @@ def run_orders_analytics():
     client.execute('TRUNCATE TABLE analytics.department_analytics')
 
     client.execute('TRUNCATE TABLE analytics.user_analytics')
+
+    client.execute('TRUNCATE TABLE analytics.user_loyalty')
 
     # INSERT DATA
     print("\n⬆️ Insert data ke ClickHouse...")
@@ -312,7 +348,7 @@ def run_orders_analytics():
     # ]
 
     user_analytics_tuples = [
-        (int(row.user_id), int(row.total_orders), round(float(row.avg_products_per_order), 2), int(row.largest_order_size), int(row.smallest_order_size))
+        (int(row.user_id), int(row.total_orders), round(float(row.avg_products_per_order), 2), int(row.largest_order_size), int(row.smallest_order_size), int(row.total_products_bought))
         for row in user_analytics_pd.itertuples(index=False)
     ]
 
@@ -321,6 +357,18 @@ def run_orders_analytics():
         client.execute(
             'INSERT INTO analytics.user_analytics VALUES',
             user_analytics_tuples
+        )
+
+    # USER LOYALTY INSERT
+    user_loyalty_tuples = [
+        (int(row.user_id), round(float(row.avg_days_between_orders or 0), 2), round(float(row.churn_risk_score), 2), str(row.churn_risk))
+        for row in user_loyalty_pd.itertuples(index=False)
+    ]
+
+    if user_loyalty_tuples:
+        client.execute(
+            'INSERT INTO analytics.user_loyalty VALUES',
+            user_loyalty_tuples
         )
 
     print("✅ Semua analytics berhasil dimuat ke ClickHouse")
