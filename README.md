@@ -202,8 +202,7 @@ user_loyalty_df = user_order_days_df.withColumn(
   4. Low Risk: Assigned to active, steady accounts with scores < 0.4
 
 
-
-#### 4. Data destructuring and Type Casting (converting PySpark's dataframes into Pandas and mapping the structure to Python tuples)
+4. Data destructuring and Type Casting (converting PySpark's dataframes into Pandas and mapping the structure to Python tuples)
 
 After all Spark transformations and aggregations are completed, each PySpark DataFrame is converted into a Pandas DataFrame using the `toPandas()` function before insertion into ClickHouse. The Pandas DataFrames are then mapped into Python tuple structures because the ClickHouse Python driver performs bulk insertion using tuple-based row formatting. 
 ```python
@@ -214,7 +213,7 @@ top_products_tuples = [
 ```
 Some fields are also explicitly type-casted and rounded before insertion to avoid schema mismatches between Spark and ClickHouse data types.
 
-#### 5. OLAP Layer Storage (initiates an external database driver connection to a distributed container network (host='clickhouse-server')
+5. OLAP Layer Storage (initiates an external database driver connection to a distributed container network (host='clickhouse-server')
 
 The final stage of the pipeline connects to the ClickHouse OLAP database container through Docker's distributed internal network. 
 ```python
@@ -228,6 +227,22 @@ The pipeline then creates the analytics database if it does not exist and create
 ```python
 client.execute('TRUNCATE TABLE analytics.top_products')
 ```
+
+#### `pipeline.py` code (fey)
+This script defines the workflow orchestration logic using Apache Airflow. It creates a DAG (Directed Acyclic Graph) named `orders_realtime_pipeline` which automates the execution flow between the ingestion and analytics stages of the pipeline. The DAG is scheduled to run every 10 minutes using:
+```python id="r8pjwq"
+schedule_interval='*/10 * * * *'
+```
+Two `BashOperator` tasks are also defined:
+1. `fetch_orders_data` → executes `fetch.py` to retrieve and store raw API data into the data lake
+2. `process_orders_analytics` → executes `process.py` to process the parquet files and load analytics into ClickHouse
+
+Finally, the dependency:
+```python id="4x91ut"
+fetch_orders >> process_orders
+```
+ensures that the processing stage only starts after the data ingestion stage completes successfully, allowing the pipeline to run sequentially and automatically every cycle.
+
 
 ### B. Explanation of Insights, Visualization, and Dashboard:
 Metabase visualization (Isabel):
