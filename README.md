@@ -143,6 +143,11 @@ Metabase visualization (Isabel):
 
 Some of the visualizations were made using SQL Queries from Metabase, but others simply used the Metabase Visualization tool (since most of the SQL Queries for the analytics database is already incorporated in the process.py code).
 
+Full dashboard:
+
+[Metabase - Product Analytics Dashboard.pdf](https://github.com/user-attachments/files/27967218/Metabase.-.Product.Analytics.Dashboard.pdf)
+
+
 
 ## C. Guide to Run Pipeline:
 
